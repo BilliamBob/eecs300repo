@@ -11,8 +11,6 @@ void setup() {
   Serial.begin(115200); // larger baud rate for sending all 64 pixel values
 }
 
-float row2[8];
-float row7[8];
 float image[64];
 int room_occupancy = 0;
 int detect2 = 0;
@@ -50,9 +48,9 @@ float calcStDev()
     return sqrt(variance);
 }
 
-int detect(float row[]){
+int detect(int row){
   for(int i = 0; i < 8; i++){
-    if(row[i] > 23){
+    if(image[i + (row * 8)] > (mean + 1.5*stdev)){
       return 1;
     }
   }
@@ -63,25 +61,22 @@ void loop() {
   mean = 0;
   for(unsigned char i = 0; i < 64; i++){
     image[i] = amg8833.getPixelTemperature(i);
-    // Poll row 2
-    if(i > 7 && i < 16){
-      row2[i - 8] = amg8833.getPixelTemperature(i);
-    }
-    // Poll row 7
-    else if (i > 47 && i < 56){
-      row7[i - 48] = amg8833.getPixelTemperature(i);
-    }
   } 
 
   stdev = calcStDev();
-  detect2 = detect(row2);
-  detect7 = detect(row7);
+  detect2 = detect(1);
+  detect7 = detect(6);
+  Serial.println(mean);
+  Serial.println(stdev);
+  Serial.println(detect2);
+  Serial.println(detect7);
+  Serial.println(state);
 
   if(detect2 && state == 0){
-    state == 1;
+    state = 1;
   }
   else if(detect7 && state == 0){
-    state == 2;
+    state = 2;
   }
   else if(state == 1){
     count++;
