@@ -13,8 +13,10 @@ void setup() {
 
 float image[64];
 int room_occupancy = 0;
-int detect2 = 0;
-int detect7 = 0;
+int detectIn = 0;
+int detectOut = 0;
+int prevdetectIn = 0;
+int prevdetectOut = 0;
 int state = 0;
 float mean = 0;
 int count = 0;
@@ -64,23 +66,28 @@ void loop() {
   } 
 
   stdev = calcStDev();
-  detect2 = detect(1);
-  detect7 = detect(6);
+  detectIn = detect(2);
+  detectOut = detect(5);
   Serial.println(mean);
   Serial.println(stdev);
-  Serial.println(detect2);
-  Serial.println(detect7);
+  Serial.println(detectIn);
+  Serial.println(detectOut);
   Serial.println(state);
-
-  if(detect2 && state == 0){
+  
+  if(stdev < 0.75){
+    if(state != 0){
+      state = 0;
+    }
+  }
+  else if(detectIn && state == 0){
     state = 1;
   }
-  else if(detect7 && state == 0){
+  else if(detectOut && state == 0){
     state = 2;
   }
   else if(state == 1){
     count++;
-    if(detect7){
+    if(detectOut && !prevdetectOut){
       room_occupancy--;
       state = 0;
     }
@@ -91,7 +98,7 @@ void loop() {
   }
   else if(state == 2){
     count++;
-    if(detect2){
+    if(detectIn && !prevdetectIn){
       room_occupancy++;
       state = 0;
     }
@@ -100,6 +107,9 @@ void loop() {
       count = 0;
     }
   }
+  prevdetectIn = detectIn;
+  prevdetectOut = detectOut;
+
   // end print with return
   Serial.print("Room Occupancy: ");
   Serial.println(room_occupancy);
