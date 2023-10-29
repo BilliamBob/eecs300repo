@@ -74,15 +74,15 @@ void loop() {
   Serial.println(detectOut);
   Serial.println(state);
   
-  if(stdev < 0.75){
+  if(stdev < 0.6){
     if(state != 0){
       state = 0;
     }
   }
-  else if(detectIn && state == 0){
+  else if(detectIn && !prevdetectIn && state == 0){
     state = 1;
   }
-  else if(detectOut && state == 0){
+  else if(detectOut && !prevdetectOut && state == 0){
     state = 2;
   }
   else if(state == 1){
