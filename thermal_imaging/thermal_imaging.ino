@@ -52,7 +52,7 @@ float calcStDev()
 
 int detect(int row){
   for(int i = 0; i < 8; i++){
-    if(image[i + (row * 8)] > (mean + 1.5*stdev)){
+    if(image[i + (row * 8)] > (mean + 1.75*stdev)){
       return 1;
     }
   }
@@ -74,10 +74,12 @@ void loop() {
   Serial.println(detectOut);
   Serial.println(state);
   
-  if(stdev < 0.6){
+  if(stdev < 1.0){
     if(state != 0){
       state = 0;
     }
+    detectIn = 0;
+    detectOut = 0;
   }
   else if(detectIn && !prevdetectIn && state == 0){
     state = 1;
@@ -90,6 +92,7 @@ void loop() {
     if(detectOut && !prevdetectOut){
       room_occupancy--;
       state = 0;
+      count = 0;
     }
     else if(count >= 20){
       state = 0;
@@ -101,6 +104,7 @@ void loop() {
     if(detectIn && !prevdetectIn){
       room_occupancy++;
       state = 0;
+      count = 0;
     }
     else if(count >= 20){
       state = 0;
