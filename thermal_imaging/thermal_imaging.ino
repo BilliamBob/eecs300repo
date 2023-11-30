@@ -11,7 +11,9 @@ void setup() {
   Serial.begin(115200); // larger baud rate for sending all 64 pixel values
 }
 
-float image[64];
+float image[64]; //deltas
+float oldImage[64]; //oldImage
+
 int room_occupancy = 0;
 int detectIn = 0;
 int detectOut = 0;
@@ -52,7 +54,7 @@ float calcStDev()
 
 int detect(int row){
   for(int i = 0; i < 8; i++){
-    if(image[i + (row * 8)] > (mean + 1.75*stdev)){
+    if(image[i + (row * 8)] < (mean - 1.75*stdev)){
       return 1;
     }
   }
