@@ -6,6 +6,7 @@
 #include "sharedVariable.h"
 #include "Preferences.h"
 
+
 GridEYE amg8833;
 
 #define BUTTON_PIN 0//boot button
@@ -24,10 +25,15 @@ volatile int prevDetectIn = 0;
 volatile int prevDetectOut = 0;
 volatile int state = 0;
 volatile float mean = 0;
+volatile float stdev = 0;
+
+volatile float imageStdev = 0;
+volatile float imageMean = 0;
+
+
 volatile int timeOutIn;
 volatile int timeOutOut;
 volatile int count = 0;
-volatile float stdev = 0;
 volatile shared_uint32 x;
 Preferences nonVol;//used to store the count in nonvolatile memory
 
@@ -70,6 +76,34 @@ float calcStDev(float arr[])
     return sqrt(variance);
 }
 
+float imageCalcStDev(float arr[])
+{
+    int N = 64;
+    // variable to store sum of the given data
+    float sum = 0;
+    for (int i = 0; i < N; i++) {
+        sum += arr[i];
+    }
+ 
+    // calculating mean
+    imageMean = sum / N;
+ 
+    // temporary variable to store the summation of square
+    // of difference between individual data items and mean
+    float values = 0;
+ 
+    for (int i = 0; i < N; i++) {
+        values += pow(arr[i] - imageMean, 2);
+    }
+ 
+    // variance is the square of standard deviation
+    float variance = values / N;
+ 
+    // calculating standard deviation by finding square root
+    // of variance
+    return sqrt(variance);
+}
+
 int detect(int row){
   int num_people = 0;
   int half1 = 0;
@@ -94,19 +128,23 @@ int detect(int row){
 }
 
 void loop() {
-  int mean = 0;
+  mean = 1000;
   for(unsigned char i = 0; i < 64; i++){
     image[i] = amg8833.getPixelTemperature(i); //reading current into image
   }
 
-  for (unsigned char i = 0; i < 64; i++) {
-    deltas[i] = image[i]-oldImage[i]; //deltas here!
-  }  
+  for(unsigned char i = 0; i < 64; i++){
+    deltas[i] = image[i] - oldImage[i];
+  }
+
 
   stdev = calcStDev(deltas);
+
   detectIn = detect(2);
   detectOut = detect(5);
+  Serial.print("deltas mean ");
   Serial.println(mean);
+  Serial.print("deltas stdev ");
   Serial.println(stdev);
   Serial.print("detectIn ");
   Serial.println(detectIn);
@@ -117,12 +155,18 @@ void loop() {
   Serial.print("prevDetectOut ");
   Serial.println(prevDetectOut);
 
-  Serial.println(state);
+
+  //Serial.println(state);
   
 //have a timeout
 //evaluate between 
-  int temp = mean;
-  if (calcStDev(image) < 1.0) { //nobody in sensor
+
+  imageStdev = imageCalcStDev(image);
+  Serial.print("image mean ");
+  Serial.println(imageMean);
+  Serial.print("image stdev ");
+  Serial.println(imageStdev);
+  if (imageStdev < 1.0) { //nobody in sensor
     detectIn = 0;
     detectOut = 0;
     prevDetectIn = 0;
@@ -157,7 +201,6 @@ void loop() {
       }
     }
   }
-  mean = temp; //cringe fix for globals
 
   timeOutIn++;
   timeOutOut++;
@@ -221,16 +264,37 @@ void loop() {
   }  
 
 
-  Serial.print("Room Occupancy: ");
-  Serial.println(room_occupancy);
-
-  for (int i = 0; i < 8; i++) {
+  Serial.println("FULL DEBUG DELTAS");
+   for (int i = 0; i < 8; i++) {
     for (int j = 0; j < 8; j++) {
-      Serial.print(deltas[8*i + j] < (mean-1.75*stdev));
+      Serial.print(deltas[8*i + j] < (mean-1.2*stdev));
       Serial.print(" ");
     }
     Serial.println();
   }
+
+  Serial.print("Room Occupancy: ");
+  Serial.println(room_occupancy);
+
+
+Serial.println("FULL DEBUG IMAGE");
+   for (int i = 0; i < 8; i++) {
+    for (int j = 0; j < 8; j++) {
+      Serial.print(image[8*i + j] );
+      Serial.print(" ");
+    }
+    Serial.println();
+  }
+
+  Serial.print("Room Occupancy: ");
+  Serial.println(room_occupancy);
+  // for (int i = 0; i < 8; i++) {
+  //   for (int j = 0; j < 8; j++) {
+  //     Serial.print(deltas[8*i + j] < (mean-1.75*stdev));
+  //     Serial.print(" ");
+  //   }
+  //   Serial.println();
+  // }
 
   if(count != room_occupancy){
     // end print with return
@@ -239,7 +303,7 @@ void loop() {
     update_non_vol_count();//updates nonvolatile count 
   }
   // short delay between sends
-  delay(1000);
+  delay(100);
 }
 
 //initializes nonvolatile memory and retrieves latest count
