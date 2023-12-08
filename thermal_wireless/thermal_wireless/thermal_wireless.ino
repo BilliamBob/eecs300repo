@@ -6,7 +6,6 @@
 #include "sharedVariable.h"
 #include "Preferences.h"
 
-
 GridEYE amg8833;
 
 #define BUTTON_PIN 0//boot button
@@ -29,7 +28,7 @@ volatile float stdev = 0;
 
 volatile float imageStdev = 0;
 volatile float imageMean = 0;
-
+float thres = 1.7;
 
 volatile int timeOutIn;
 volatile int timeOutOut;
@@ -46,7 +45,6 @@ void setup() {
   init_non_vol_count();//initializes nonvolatile memory and retrieves latest count
   INIT_SHARED_VARIABLE(x, count);//init shared variable used to tranfer info to WiFi core
 }
-
 
 float calcStDev(float arr[])
 {
@@ -109,7 +107,7 @@ int detect(int row){
   int half1 = 0;
   int half2 = 0;
   for(int i = 0; i < 8; i++){
-    if(deltas[i + (row * 8)] < (mean - 1.75*stdev)){
+    if(deltas[i + (row * 8)] < (mean - 1.1*stdev)){
       if(i < 4){
         half1++;
       }
@@ -119,6 +117,36 @@ int detect(int row){
     }
   }
   if (half1 > 2 && half2 > 2) {
+    Serial.println("WAOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
+    return 2;
+  }
+  else if (half1 > 0 || half2 > 0) {
+    return 1;
+  }
+  return 0;
+}
+
+int detectCol(int col){
+  int num_people = 0;
+  int half1 = 0;
+  int half2 = 0;
+
+  if (stdev < 0.55) {
+    return 0;
+  }
+
+  for(int i = 0; i < 8; i++){
+    if(deltas[col + i*8] < mean-thres*stdev){
+      if (i<4) {
+        half1++;
+      } else {
+        half2++;
+      }
+    }
+  }
+  if (half1 > 1 && half2 > 1) {
+    Serial.println("WAOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
+
     return 2;
   }
   else if (half1 > 0 || half2 > 0) {
@@ -140,8 +168,8 @@ void loop() {
 
   stdev = calcStDev(deltas);
 
-  detectIn = detect(2);
-  detectOut = detect(5);
+  detectIn = detectCol(5);
+  detectOut = detectCol(3);
   Serial.print("deltas mean ");
   Serial.println(mean);
   Serial.print("deltas stdev ");
@@ -177,6 +205,7 @@ void loop() {
   } else { //someone is here!
   
     if (detectIn) {
+      timeOutIn = 0;
       if (prevDetectOut) { //people entering room completed
         room_occupancy += (min(detectIn, prevDetectOut));
         prevDetectOut -= min(detectIn, prevDetectOut);
@@ -189,6 +218,7 @@ void loop() {
       }
     }
     if (detectOut) {
+      timeOutOut = 0;
       if (prevDetectIn) { //people entering room completed
         room_occupancy -= (min(detectOut, prevDetectIn));
         prevDetectIn -= min(detectOut, prevDetectIn);
@@ -201,15 +231,16 @@ void loop() {
       }
     }
   }
-
   timeOutIn++;
   timeOutOut++;
 
   if (timeOutIn > 10) {
     prevDetectIn = 0;
+    Serial.println("TIMED OUT");
   }
   if (timeOutOut > 10) {
     prevDetectOut = 0;
+    Serial.println("TIMED OUT");
   }
 
 
@@ -267,10 +298,14 @@ void loop() {
   Serial.println("FULL DEBUG DELTAS");
    for (int i = 0; i < 8; i++) {
     for (int j = 0; j < 8; j++) {
-      Serial.print(deltas[8*i + j] < (mean-1.2*stdev));
+      Serial.print(deltas[8*i + j] < (mean-thres*stdev));
       Serial.print(" ");
     }
     Serial.println();
+  }
+
+  if (room_occupancy < 0) {
+    room_occupancy = 0;
   }
 
   Serial.print("Room Occupancy: ");
